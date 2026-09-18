@@ -23,48 +23,24 @@ export default class main extends Phaser.Scene {
     create ()
     {   
         this.weapon = 'none';
-        this.anims.create(
+        
+
+        this.whip = new weapon(this, 'whip')
+        this.bat = new weapon(this, 'bat')
+
+        this.twerk = this.anims.create(
             {
                 key: 'twerk',
                 frames: [
                     {key: 'chatgpt'},
                     {key: 'chatgpt2'},
                 ],
-                frameRate: 1,
+                frameRate: 2,
                 repeat: -1,
             }
         )
-
-        this.whip = new weapon(this, 'whip')
-        this.bat = new weapon(this, 'bat')
-
-        const bot = this.add.sprite(640, 500, 'chatgpt').play('twerk').setInteractive().on('pointerdown', () => {
-            if(this.weapon != 'none'){
-                this.whip.once('animationupdate', (animation, frame) => {
-                    if (frame.index === 7) {
-                        bot.setTexture('ow')
-                        bot.setTint('0xff0000')
-                        
-                        const text = this.add.text(this.input.activePointer.x + (20 * Math.random()), this.input.activePointer.y - (20 * Math.random()), 'Work Faster!!!').setDepth(2).setColor('#000000')
-                        this.tweens.add({ 
-                            targets: text, 
-                            y: text.y - 50,
-                            alpha: 0,    
-                            duration: 500,   
-                            ease: 'Linear',
-                            onComplete: () => {text.destroy();},
-                        }); 
-                        this.time.delayedCall(100, () => {
-                            bot.clearTint(); 
-                        });
-                    }
-                    
-                }) 
-                        
-            }
-        }).setOrigin(0.5);
-
-
+        this.botHit = 'none'
+        this.bot = new bot(this, 640, 500, 'chatgpt', this.twerk)
         
 
         this.whipButton = new button(this, 30, 30, {type: 'weapon', weaponType: this.whip, siblings: []})
@@ -95,6 +71,35 @@ export default class main extends Phaser.Scene {
     }
 }
 
+class bot extends Phaser.GameObjects.Sprite{
+    constructor(scene, x, y, key, anim){
+        super(scene, x, y, key);
+        
+        scene.add.existing(this)
+        this.play(anim.key).setInteractive().on('pointerdown', () => {
+            if(this.weapon != 'none'){
+                scene.botHit = this;
+                console.log(scene.botHit)         
+            }
+        }).setOrigin(0.5);
+
+        this.tungMeter = scene.add.rectangle(x, y + 70, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3')
+        this.timeTilTung = scene.add.rectangle(x - 75, y + 70, 5, 10).setOrigin( 0, 0.5).setFillStyle('0xB0E0E6')
+        
+        scene.tweens.add({
+            targets: this.timeTilTung,
+            width: this.tungMeter.width,
+            duration: 5000,
+            repeat: -1,
+            overwrite: 'auto',
+            onComplete: () => {
+                this.timeTilTung.width = 5;
+            }
+        })
+    }
+}
+
+
 class weapon extends Phaser.GameObjects.Sprite{
     constructor(scene, key){
         super(scene, 0, 0, key);
@@ -116,20 +121,58 @@ class weapon extends Phaser.GameObjects.Sprite{
                 repeat: 0 
             });
         }
+
+        this.on('animationupdate', (animation, frame) => {
+            if (frame.index === 7 && this.scene.botHit != 'none') {
+                const scene = this.scene;
+                const bot = scene.botHit;
+                bot.anims.stop()
+                bot.setTexture('ow')
+                bot.setTint('0xff0000')
+                scene.tweens.add({ 
+                    targets: bot, 
+                    y: bot.y - 10,
+                    yoyo: true,
+                    duration: 50
+                })
+                bot.timeTilTung.setSize((bot.timeTilTung.width + 90) % bot.tungMeter.width, 10)
+                
+                bot.anims.timeScale = 4.0;
+                scene.time.delayedCall(3000, () => {bot.anims.timeScale = 1.0;})
+
+                const text = scene.add.text(scene.input.activePointer.x + (20 * Math.random()), scene.input.activePointer.y - (20 * Math.random()), 'Work Faster!!!').setDepth(2).setColor('#000000')
+                scene.tweens.add({ 
+                    targets: text, 
+                    y: text.y - 50,
+                    alpha: 0,    
+                    duration: 700,   
+                    ease: 'Linear',
+                    onComplete: () => {text.destroy();},
+                }); 
+                scene.time.delayedCall(200, () => {
+                    bot.clearTint(); 
+                    scene.botHit = 'none';
+                    bot.anims.play('twerk');
+                });
+            } 
+        })
     }
 
     anim() {
         if(this.key == 'whip'){
-            this.once('animationcomplete-do', () => {
-                this.setTexture('whip');
-            });
+            if (!this.anims.isPlaying || this.anims.currentAnim.key !== 'do') {
+                this.once('animationcomplete-do', () => {
+                    this.setTexture('whip');
+                });
 
-            this.play('do', true);
+                this.play('do', true);
+            }
+
         } else {
             this.scene.tweens.add({
                 targets: this,
-                duration: 100,
-                rotation: Math.PI,
+                duration: 80,
+                rotation: 1.5,
                 ease: 'linear',
                 onComplete: () => {
                     this.setRotation(0)
