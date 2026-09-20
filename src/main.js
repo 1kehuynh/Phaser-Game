@@ -11,7 +11,7 @@ var config = {
     scale:{
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [menu, main],
+    scene: [main],
     parent: 'game', 
     backgroundColor: 'rgba(255, 255, 255, 0)',
    

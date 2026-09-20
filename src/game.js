@@ -18,6 +18,8 @@ export default class main extends Phaser.Scene {
             frameWidth: 600,
             frameHeight: 600
         });
+        this.load.image('tung', 'tung.png')
+        this.load.audio('whipcrack','whipcrack.wav')
     }
 
     create ()
@@ -41,7 +43,6 @@ export default class main extends Phaser.Scene {
         )
         this.botHit = 'none'
         this.bot = new bot(this, 640, 500, 'chatgpt', this.twerk)
-        
 
         this.whipButton = new button(this, 30, 30, {type: 'weapon', weaponType: this.whip, siblings: []})
         this.batButton = new button(this, 100, 30, {type: 'weapon', weaponType: this.bat, siblings: []})
@@ -62,20 +63,93 @@ export default class main extends Phaser.Scene {
     {   
         if(this.weapon === this.whip && this.whip.anims.isPlaying == false){
             this.whip.setPosition(this.input.activePointer.x - 70,this.input.activePointer.y + 50);
-        } 
-        if(this.weapon === this.bat){
+        } else if(this.weapon === this.bat){
             this.bat.setPosition(this.input.activePointer.x, this.input.activePointer.y);
         }
 
+        this.bot.generate()
         
     }
 }
+class tung extends Phaser.GameObjects.Sprite{
+    constructor(scene, botX, botY, key, anim){
+        super(scene, (Math.random() * 20)+ (botX - 5), botY, key);
+        scene.add.existing(this)
+
+
+        this.startX = this.x;
+        const endX = this.x - (Math.random() * 100) - 150;
+        this.startY = this.y;
+        const endY = (Math.random() * 100) + (botY - 50);
+        const arcHeight = (Math.random() * 50) + 100; 
+
+        this.setDepth(endY)
+        this.scene = scene;
+        scene.tweens.add({
+            targets: { progress: 0 },
+            progress: 1,
+            duration: 1000, // 1 second
+            ease: 'Linear',
+            onUpdate: (tween) => {
+                let p = tween.getValue();
+                // Linear interpolation for X
+                this.x = Phaser.Math.Linear(this.startX, endX, p);
+                
+                // Parabolic or Sine arc for Y (Math.sin gives a smooth arc from 0 to PI)
+                let heightOffset = Math.sin(p * Math.PI) * arcHeight;
+                this.y = Phaser.Math.Linear(this.startY, endY, p) - heightOffset;
+            },
+            onComplete: () => {
+                this.startRandomTween()
+            }
+        });
+
+
+
+    }
+
+    startRandomTween() {
+        const randomX = Phaser.Math.Between(this.startX - 500, this.startX);
+        const randomY = Phaser.Math.Between(this.startY - 300, this.startY + 300);
+
+        if(randomX > this.x){
+            this.setFlipX(true)
+        } else {
+            this.setFlipX(false)
+        }
+
+        this.scene.tweens.add({
+            targets: this,
+            x: randomX,
+            y: randomY,
+            duration: Phaser.Math.Between(1000, 4000), // Random speed
+            ease: 'Linear',
+            onUpdate: () => {
+                this.setDepth(this.y)
+            },
+            onComplete: () => {
+                
+                if(Math.random() > 0.5) {
+                    this.scene.time.delayedCall(Math.random() * 5000, () => {
+                        this.startRandomTween()
+                    })
+                }else{
+                    this.startRandomTween();
+                }
+            }
+        });
+    }
+}
+
 
 class bot extends Phaser.GameObjects.Sprite{
     constructor(scene, x, y, key, anim){
         super(scene, x, y, key);
         
         scene.add.existing(this)
+        this.scene = scene;
+        this.x = x;
+        this.y = y;
         this.play(anim.key).setInteractive().on('pointerdown', () => {
             if(this.weapon != 'none'){
                 scene.botHit = this;
@@ -85,17 +159,14 @@ class bot extends Phaser.GameObjects.Sprite{
 
         this.tungMeter = scene.add.rectangle(x, y + 70, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3')
         this.timeTilTung = scene.add.rectangle(x - 75, y + 70, 5, 10).setOrigin( 0, 0.5).setFillStyle('0xB0E0E6')
-        
-        scene.tweens.add({
-            targets: this.timeTilTung,
-            width: this.tungMeter.width,
-            duration: 5000,
-            repeat: -1,
-            overwrite: 'auto',
-            onComplete: () => {
-                this.timeTilTung.width = 5;
-            }
-        })
+    }
+
+    generate(){
+        this.timeTilTung.width += 0.2;
+        if (this.timeTilTung.width >= this.tungMeter.width) {
+            this.timeTilTung.width = 0;
+            this.tung = new tung(this.scene, this.x - (this.width / 2) - 30, this.y, 'tung');
+        }
     }
 }
 
@@ -123,37 +194,51 @@ class weapon extends Phaser.GameObjects.Sprite{
         }
 
         this.on('animationupdate', (animation, frame) => {
-            if (frame.index === 7 && this.scene.botHit != 'none') {
-                const scene = this.scene;
-                const bot = scene.botHit;
-                bot.anims.stop()
-                bot.setTexture('ow')
-                bot.setTint('0xff0000')
-                scene.tweens.add({ 
-                    targets: bot, 
-                    y: bot.y - 10,
-                    yoyo: true,
-                    duration: 50
-                })
-                bot.timeTilTung.setSize((bot.timeTilTung.width + 90) % bot.tungMeter.width, 10)
-                
-                bot.anims.timeScale = 4.0;
-                scene.time.delayedCall(3000, () => {bot.anims.timeScale = 1.0;})
+            if (frame.index === 7) {              
+                this.scene.sound.play('whipcrack');
 
-                const text = scene.add.text(scene.input.activePointer.x + (20 * Math.random()), scene.input.activePointer.y - (20 * Math.random()), 'Work Faster!!!').setDepth(2).setColor('#000000')
-                scene.tweens.add({ 
-                    targets: text, 
-                    y: text.y - 50,
-                    alpha: 0,    
-                    duration: 700,   
-                    ease: 'Linear',
-                    onComplete: () => {text.destroy();},
-                }); 
-                scene.time.delayedCall(200, () => {
-                    bot.clearTint(); 
-                    scene.botHit = 'none';
-                    bot.anims.play('twerk');
-                });
+                if(this.scene.botHit != 'none'){
+                    const scene = this.scene;
+                    const bot = scene.botHit;
+                    bot.anims.stop()
+                    bot.setTexture('ow')
+                    bot.setTint('0xff0000')
+                    scene.tweens.add({ 
+                        targets: bot, 
+                        y: bot.y - 10,
+                        yoyo: true,
+                        duration: 50
+                    })
+                    
+
+                    if(bot.timeTilTung.width < bot.tungMeter.width - 30){
+                        bot.timeTilTung.width += 30
+                    } else{
+                    // bot.timeTilTung.width = (bot.timeTilTung.width + 30) % (bot.tungMeter.width);
+                    bot.timeTilTung.width += (bot.tungMeter.width - bot.timeTilTung.width - 1);
+                    }
+
+                    bot.timeTilTung.setFillStyle('0xF1E5AC')
+                    bot.anims.timeScale = 4.0;
+                    scene.time.delayedCall(3000, () => {bot.anims.timeScale = 1.0;})
+
+                    const text = scene.add.text(scene.input.activePointer.x + (20 * Math.random()), scene.input.activePointer.y - (20 * Math.random()), 'Work Faster!!!').setDepth(2).setColor('#000000')
+                    scene.tweens.add({ 
+                        targets: text, 
+                        y: text.y - 50,
+                        alpha: 0,    
+                        duration: 700,   
+                        ease: 'Linear',
+                        onComplete: () => {text.destroy();},
+                    }); 
+                    scene.time.delayedCall(200, () => {
+                        bot.clearTint(); 
+                        scene.botHit = 'none';
+                        bot.anims.play('twerk');
+                        bot.timeTilTung.setFillStyle('0xB0E0E6')
+                    });
+                }
+                
             } 
         })
     }
