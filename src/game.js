@@ -10,6 +10,8 @@ export default class main extends Phaser.Scene {
     {   
 
         this.load.image('whip', 'whip.png');
+        this.load.image('mute', 'mute.png');
+        this.load.image('muted', 'muted.png')
         this.load.image('chatgpt', 'chatgpt.png');
         this.load.image('chatgpt2', 'chatgpt2.png');
         this.load.image('bat', 'bat.png')
@@ -18,8 +20,15 @@ export default class main extends Phaser.Scene {
             frameWidth: 600,
             frameHeight: 600
         });
+        this.load.spritesheet('tungWalk', 'tungWalk.png', {
+            frameWidth: 90,
+            frameHeight: 90
+        })
         this.load.image('tung', 'tung.png')
+
+        //whipcrack credits: whip and crack sound by JayRom01 -- https://freesound.org/s/615761/ -- License: Creative Commons 0
         this.load.audio('whipcrack','whipcrack.wav')
+        this.load.audio('tungsounds','tungsahursounds.mp3')
     }
 
     create ()
@@ -44,12 +53,6 @@ export default class main extends Phaser.Scene {
         this.botHit = 'none'
         this.bot = new bot(this, 640, 500, 'chatgpt', this.twerk)
 
-        this.whipButton = new button(this, 30, 30, {type: 'weapon', weaponType: this.whip, siblings: []})
-        this.batButton = new button(this, 100, 30, {type: 'weapon', weaponType: this.bat, siblings: []})
-        this.whipButton.siblings = [this.batButton];
-        this.batButton.siblings = [this.whipButton];
-
-
         this.input.on('pointerdown', () => {
             if(this.weapon === this.bat){
                 this.bat.anim();
@@ -57,6 +60,45 @@ export default class main extends Phaser.Scene {
                this.whip.anim();
             }
         })
+
+        this.cursors = this.input.keyboard.createCursorKeys()
+        this.wasd = this.input.keyboard.addKeys({
+            up: "W",
+            down: "S",
+            left: "A",
+            right: "D",
+        });
+
+        this.scene.launch('UIScene')
+        const uiScene = this.scene.get('UIScene')
+
+        this.events.on('muteClicked', () => {
+            this.sound.mute = !this.sound.mute
+        })
+        
+        this.events.on('btnClicked', (btn) => {
+            this.whip.setVisible(false)
+            this.whip.setActive(false)
+            this.bat.setVisible(false)
+            this.bat.setActive(false)
+            console.log(btn.weaponType)
+            if(btn.weaponType === 'whip' && this.weapon != this.whip){
+                this.weapon = this.whip;
+                this.weapon.setVisible(true)
+                this.weapon.setActive(true)
+                btn.setSelected();
+            }
+            else if(btn.weaponType === 'bat' && this.weapon != this.bat){
+                this.weapon = this.bat;
+                this.weapon.setVisible(true)
+                this.weapon.setActive(true)
+                btn.setSelected();
+            } else {
+                btn.setUnselected();
+                this.weapon = 'none'
+            }
+        } 
+        )
     }
 
     update () 
@@ -69,12 +111,41 @@ export default class main extends Phaser.Scene {
 
         this.bot.generate()
         
+        if (this.cursors.left.isDown || this.wasd.left.isDown)
+        {
+            this.cameras.main.scrollX = this.cameras.main.scrollX - 1;
+        }
+        if (this.cursors.right.isDown || this.wasd.right.isDown)
+        {
+            this.cameras.main.scrollX = this.cameras.main.scrollX + 1;
+        }
+        if(this.cursors.up.isDown || this.wasd.up.isDown){
+            this.cameras.main.scrollY = this.cameras.main.scrollY - 1;
+        }
+        if(this.cursors.down.isDown || this.wasd.down.isDown){
+            this.cameras.main.scrollY = this.cameras.main.scrollY + 1;
+        }
     }
+    
+
 }
 class tung extends Phaser.GameObjects.Sprite{
     constructor(scene, botX, botY, key, anim){
         super(scene, (Math.random() * 20)+ (botX - 5), botY, key);
         scene.add.existing(this)
+        this.scene.sound.add('tungsounds', {volume: 0.5}).play()
+
+        if (!scene.anims.exists('walk')) {
+            this.scene.anims.create({
+                key: 'walk',
+                frames: this.scene.anims.generateFrameNumbers('tungWalk', {
+                    start: 0,
+                    end: 2
+                }),
+                frameRate: 15,
+                repeat: -1 
+            });
+        }
 
 
         this.startX = this.x;
@@ -103,41 +174,46 @@ class tung extends Phaser.GameObjects.Sprite{
                 this.startRandomTween()
             }
         });
-
-
-
     }
 
     startRandomTween() {
+        this.play('walk', true);
         const randomX = Phaser.Math.Between(this.startX - 500, this.startX);
         const randomY = Phaser.Math.Between(this.startY - 300, this.startY + 300);
+        const totalDist = Phaser.Math.Distance.Between(this.x, this.y, randomX, randomY)
+        let duration = Phaser.Math.Between(1000, 6000)
+        let e = (totalDist * 10)/duration;
 
+        this.anims.timeScale = e;
         if(randomX > this.x){
             this.setFlipX(true)
         } else {
             this.setFlipX(false)
         }
 
-        this.scene.tweens.add({
+        if(Math.random() > 0.5) {
+            this.scene.tweens.add({
             targets: this,
             x: randomX,
             y: randomY,
-            duration: Phaser.Math.Between(1000, 4000), // Random speed
+            duration: duration, // Random speed
             ease: 'Linear',
             onUpdate: () => {
                 this.setDepth(this.y)
             },
             onComplete: () => {
-                
-                if(Math.random() > 0.5) {
-                    this.scene.time.delayedCall(Math.random() * 5000, () => {
-                        this.startRandomTween()
-                    })
-                }else{
-                    this.startRandomTween();
-                }
+                this.startRandomTween();             
             }
         });
+        } else {
+            this.stop()
+            this.setTexture('tung');
+            this.scene.time.delayedCall(Math.random() * 9000, () => {
+                this.startRandomTween()
+            })
+        }
+        
+        
     }
 }
 
@@ -156,6 +232,19 @@ class bot extends Phaser.GameObjects.Sprite{
                 console.log(scene.botHit)         
             }
         }).setOrigin(0.5);
+
+
+        let genP = scene.add.text(x, y + 55, '').setColor('#000000').setOrigin(0.5)
+        let gen = '...'
+        let wordCount = 0;
+        scene.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                genP.text = 'Generating' + gen.substring(0, wordCount % 4 + 1);
+                wordCount += 1;
+            },
+            repeat: -1
+        })
 
         this.tungMeter = scene.add.rectangle(x, y + 70, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3')
         this.timeTilTung = scene.add.rectangle(x - 75, y + 70, 5, 10).setOrigin( 0, 0.5).setFillStyle('0xB0E0E6')
@@ -178,6 +267,7 @@ class weapon extends Phaser.GameObjects.Sprite{
         this.setVisible(false);
         this.setDepth(1);
         this.scene = scene;
+        this.setScrollFactor(0);
         scene.add.existing(this);
         this.key = key;
         
@@ -271,14 +361,13 @@ class weapon extends Phaser.GameObjects.Sprite{
 class button extends Phaser.GameObjects.Container {
     constructor(scene, x, y, config = {type, weaponType, siblings}) {
         super(scene, x, y);
+        scene.add.existing(this);
+        this.setScrollFactor(0);
+    
         if(config.type === 'weapon'){
-            this.bg = scene.add.rectangle(x, y, 75, 75).setInteractive();
+            this.bg = scene.add.rectangle(x, y, 75, 75).setInteractive({ useHandCursor: true });
+            this.bg.input.camera = scene.cameras.main; 
             this.bg.setStrokeStyle(2, 0x1a65ac);
-            this.icon = scene.add.image(x, y, config.weaponType.texture).setScale(0.5, 0.5);
-
-            this.add([this.bg, this.icon]);
-
-            scene.add.existing(this);
 
             this.bg.on('pointerover', () => {
                 scene.tweens.killTweensOf(this);
@@ -289,7 +378,7 @@ class button extends Phaser.GameObjects.Container {
                 scene.tweens.killTweensOf(this);
                 scene.tweens.add({ targets: this, scale: 1.0, duration: 100 });
             });
-
+            this.icon = scene.add.image(x, y, config.weaponType.texture).setScale(0.5, 0.5);
             this.bg.on('pointerdown', () => {
                 //test cases, weapon is none and user clicks button, weapon is bat or whip and user clicks same, weapon is bat or whip and user clicks different
                 //
@@ -318,6 +407,28 @@ class button extends Phaser.GameObjects.Container {
                     this.icon.setTint('0x808080')
                 }
             });
+            this.add([this.bg]);
+        } else if (config.type === 'mute'){
+            this.icon = scene.add.image(x, y, config.type).setScale(0.75, 0.75).setInteractive({ useHandCursor: true });
+            this.icon.input.camera = scene.cameras.main; 
+            console.log(scene.sound.mute)
+            this.icon.on('pointerdown', () => {
+                if(scene.sound.mute){
+                    scene.sound.setMute(false)
+                    this.icon.setTexture('mute');
+                } else {
+                    scene.sound.setMute(true)
+                    this.icon.setTexture('muted');
+                }
+            })   
+            
+            this.icon.on('pointerover', () => {
+                this.icon.setTint(0xFF0000).setTintMode(Phaser.TintModes.FILL)
+            });
+            this.icon.on('pointerout', () => {
+                this.icon.clearTint();
+            })
         }
+        this.add([this.icon]);
     }
 }
