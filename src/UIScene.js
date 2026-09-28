@@ -1,4 +1,3 @@
-
 import Phaser from "phaser";
 export default class UIScene extends Phaser.Scene {
     constructor ()
@@ -18,7 +17,8 @@ export default class UIScene extends Phaser.Scene {
     {   
         this.weapon = 'none'
 
-        
+        this.add.text(30, 500, 'Tokens:').setColor('#000000');
+
         this.whipButton = new button(this, 30, 30, {type: 'weapon', weaponType: 'whip', siblings: []})
         this.batButton = new button(this, 100, 30, {type: 'weapon', weaponType: 'bat', siblings: []})
         this.whipButton.siblings = [this.batButton];
@@ -26,7 +26,7 @@ export default class UIScene extends Phaser.Scene {
         
 
         this.gameScene = this.scene.get('main');
-        this.muteButton = this.add.image(1000, 50, 'mute', ).setScale(0.75, 0.75).setInteractive({ useHandCursor: true });
+        this.muteButton = this.add.image(1200, 50, 'mute', ).setScale(0.75, 0.75).setInteractive({ useHandCursor: true });
         this.muteButton.on('pointerdown', () => {
             this.gameScene.events.emit('muteClicked')
             if(this.muteButton.texture.key == 'muted'){
@@ -41,6 +41,8 @@ export default class UIScene extends Phaser.Scene {
         this.muteButton.on('pointerout', () => {
             this.muteButton.clearTint();
         })
+
+
     }
 }
 
@@ -71,29 +73,6 @@ class button extends Phaser.GameObjects.Container {
             
             this.bg.on('pointerdown', () => {
                 scene.gameScene.events.emit('btnClicked', this)
-                /*
-                //test cases, weapon is none and user clicks button, weapon is bat or whip and user clicks same, weapon is bat or whip and user clicks different
-                try{              
-                    //if not clicking on same button as current weapon
-                    if(this.weapon != config.weaponType){
-                        this.weapon = config.weaponType
-                        
-                        this.bg.setFillStyle('0x808080');
-                        this.icon.setTint('0x808080')
-                        this.siblings[0].bg.setFillStyle();
-                        this.siblings[0].icon.clearTint();
-                    } else{ //if clicking on same button as current weapon
-                        gameScene.weapon = 'none'
-                        this.bg.setFillStyle();
-                        this.icon.clearTint();
-                    }
-                } catch {
-                    gameScene.weapon = config.weaponType;
-                    gameScene.weapon.setVisible(true)
-                    gameScene.weapon.setActive(true)
-                    this.bg.setFillStyle('0x808080');
-                    this.icon.setTint('0x808080')
-                }*/
             });
             this.add([this.bg]);
         }     
