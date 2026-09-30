@@ -1,11 +1,33 @@
 import Phaser from "phaser";
 export class bot extends Phaser.GameObjects.Sprite{
-    constructor(scene, x, y, key, anim){
+    constructor(scene, x, y, key){
         super(scene, x, y, key);
         this.scene = scene;
         this.x = x;
         this.y = y;
 
+        if (!scene.anims.exists('twerk')) {
+            this.twerk = this.anims.create(
+                {
+                    key: 'twerk',
+                    frames: [
+                        {key: 'chatgpt'},
+                        {key: 'chatgpt2'},
+                    ],
+                    frameRate: 2,
+                    repeat: -1,
+                }
+            )
+        }
+
+        if (!scene.anims.exists('overheating')) {
+            this.overheating = this.anims.create({
+                key: 'overheating',                                    
+                frames: this.anims.generateFrameNumbers('overheating', { start: 0, end: 1 }), 
+                frameRate: 2,                                  
+                repeat: -1                                      
+            });
+        }
         const alignX = this.x + 250;
         const alignY = this.y - 150;
         this.screen = scene.add.image(alignX - 40, alignY + 50, 'screen').setOrigin(0.5)
@@ -16,7 +38,7 @@ export class bot extends Phaser.GameObjects.Sprite{
         this.status = 'Generating'
         this.temperature = 0;
         this.health = 180;
-        this.play(anim.key).setInteractive({ useHandCursor: true }).on('pointerdown', () => {
+        this.play('twerk').setInteractive({ useHandCursor: true }).on('pointerdown', () => {
             if(this.weapon != 'none'){
                 scene.botHit = this;
                 //console.log(scene.botHit)         
@@ -36,26 +58,14 @@ export class bot extends Phaser.GameObjects.Sprite{
             },
             repeat: -1
         })
-
-        /*
-        this.tungMeter = scene.add.rectangle(alignX, alignY + 20, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3')
-        this.timeTilTung = scene.add.rectangle(alignX - 75, alignY + 20, 5, 10).setOrigin( 0, 0.5).setFillStyle('0xB0E0E6')
-
-        this.healthMeter = scene.add.rectangle(alignX, alignY + 20, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3').setVisible(false)
-        this.currentHealth = scene.add.rectangle(alignX - 75, alignY + 20, this.health, 10).setOrigin(0, 0.5).setFillStyle('0xff0000').setVisible(false)
-        this.heartImage = scene.add.image(alignX - 80, alignY + 20, 'heart').setVisible(false).setScale(0.9)
-
-        const tempAlign = 60;
-        this.tempMeter = scene.add.rectangle(alignX, alignY + tempAlign, 150, 10).setOrigin(0.5).setFillStyle('0xD3D3D3')
-        this.currentTemp = scene.add.rectangle(alignX - 75, alignY + tempAlign, this.temperature, 10).setOrigin(0, 0.5).setFillStyle('0xB0E0E6')
-        this.tempImage = scene.add.image(alignX - 80, alignY + tempAlign, 'temp')
-        */
         this.tungMeter = new statusBar(scene, alignX, alignY + 40, '0xB0E0E6', 'heart', 'Time:');
         //this.tungMeter.icon.setScale(0.8)
         this.healthMeter = new statusBar(scene, alignX, alignY + 40, '0xff0000', 'heart', 'Health:')
         this.healthMeter.setVisible(false);
         this.healthMeter.setActive(false)
         this.tempMeter = new statusBar(scene, alignX, alignY + 70, '0xB0E0E6', 'temp', 'Temperature:')
+
+        this.timmy = new timmy(this.scene, this.x, this.y - 300)
     }
 
     generate(){  
@@ -65,14 +75,26 @@ export class bot extends Phaser.GameObjects.Sprite{
             this.genP.setColor('#ff0000')
             this.healthMeter.setVisible(true).setActive(true)
             this.tungMeter.setVisible(false).setActive(false)
-            this.health -= 0.05;
-            this.healthMeter.update(this.health)
+            if(this.health > 0){
+                this.health -= 0.05;
+                this.healthMeter.update(this.health)
+            }else {
+                this.status = 'Disabled';
+            }
+            this.play('overheating', true)
         } else {
+            //this.temperature += 1;
             this.temperature += 0.1;
             this.tempMeter.update(this.temperature)
+            if(this.temperature > 160){
+                this.tempMeter.currentStatus.setFillStyle('0xff0000')
+            } else if (this.temperature > 140){
+                this.tempMeter.currentStatus.setFillStyle('0xFFFF00')
+            } 
+
             if (this.tungMeter.currentStatus.width >= this.tungMeter.outer.width) {
                 this.tungMeter.currentStatus.width = 0; 
-                this.tung = new tung(this.scene, this.x - (this.width / 2) - 30, this.y, 'tung');
+                this.tung = new tung(this.scene, this.x - (this.width / 2) - 30, this.y);
             } else {
                 this.tungMeter.currentStatus.width += 0.2;
             }
@@ -132,8 +154,8 @@ class statusBar extends Phaser.GameObjects.Container{
 }
 
 class tung extends Phaser.GameObjects.Sprite{
-    constructor(scene, botX, botY, key, anim){
-        super(scene, (Math.random() * 20)+ (botX - 5), botY, key);
+    constructor(scene, botX, botY){
+        super(scene, (Math.random() * 20)+ (botX - 5), botY, 'tung');
         scene.add.existing(this)
         /*
         this.scene.sound.add('tungsounds',  {volume: 0.5, loop: true, source: {
@@ -226,4 +248,20 @@ class tung extends Phaser.GameObjects.Sprite{
             })
         }
     }
+}
+
+class timmy extends Phaser.GameObjects.Sprite{
+   constructor(scene, x, y, anim){
+        super(scene, x, y, anim)
+        if (!scene.anims.exists('timmyWalk')) {
+            this.timmyWalk = this.scene.anims.create({
+                key: 'timmyWalk',
+                frames: this.scene.anims.generateFrameNumbers('timmyWalk', {start: 0, end: 1}),
+                frameRate: 4,
+                repeat: -1
+            })
+        }
+        scene.add.existing(this)
+        this.anims.play('timmyWalk', true)
+   }
 }

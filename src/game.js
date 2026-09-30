@@ -12,10 +12,19 @@ export default class main extends Phaser.Scene {
 
         this.load.image('chatgpt', 'chatgpt.png');
         this.load.image('chatgpt2', 'chatgpt2.png');
+        this.load.spritesheet('overheating', 'overheating.png', {
+            frameWidth: 236,
+            frameHeight: 110
+        })
         this.load.image('ow', 'ow.png')
         this.load.image('temp', 'temp.png')
         this.load.image('heart', 'heart.png')
         this.load.image('screen', 'screen.png')
+
+        this.load.spritesheet('timmyWalk', 'timmyWalk.png', {
+            frameWidth: 64,
+            frameHeight: 101
+        })
 
         this.load.image('bat', 'bat.png')
         this.load.image('whip', 'whip.png');
@@ -49,20 +58,9 @@ export default class main extends Phaser.Scene {
         this.bat = new weapon(this, 'bat')
 
         this.lake = this.add.image(640, 1500, 'lake')
-
-        this.twerk = this.anims.create(
-            {
-                key: 'twerk',
-                frames: [
-                    {key: 'chatgpt'},
-                    {key: 'chatgpt2'},
-                ],
-                frameRate: 2,
-                repeat: -1,
-            }
-        )
+      
         this.botHit = 'none'
-        this.bot = new bot(this, 640, 500, 'chatgpt', this.twerk)
+        this.bot = new bot(this, 640, 500, 'chatgpt', this.twerk, this.overheating)
 
         this.input.on('pointerdown', () => {
             if(this.weapon === this.bat){
